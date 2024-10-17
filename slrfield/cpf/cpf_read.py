@@ -30,8 +30,13 @@ def read_cpf(cpf_dir,cpf_file):
             data['Format Version'] = info[2]
             data['Ephemeris Source'] = info[3]
             data['Time of Ephemeris Production'] = Time('-'.join(info[4:7])+' '+':'.join([info[7],'0','0'])).iso
-            data['Ephemeris Sequence Number'] = info[8]
-            data['Target Name'] = info[9]
+            if data['Format Version'] == '2':
+                data['Ephemeris Sequence Number'] = info[8]
+                data['Sub-daily Ephemeris Sequence number'] = info[9]
+                data['Target Name'] = info[10]
+            else:
+                data['Ephemeris Sequence Number'] = info[8]
+                data['Target Name'] = info[9]
         elif info[0] == 'H2':
             data['COSPAR ID'] = info[1]
             data['SIC'] = info[2]
@@ -39,17 +44,33 @@ def read_cpf(cpf_dir,cpf_file):
             data['Start'] = Time('-'.join(info[4:7])+' '+':'.join(info[7:10])).iso
             data['End'] = Time('-'.join(info[10:13])+' '+':'.join(info[13:16])).iso
             data['Time Interval[sec]'] = info[16]
-            
-            if info[17] == '1':
-                target_type = 'passive(retro-reflector) artificial satellite'
-            elif info[17] == '2':
-                target_type = 'passive(retro-reflector) lunar reflector'
-            elif info[17] == '3':
-                target_type = 'synchronous transponder'
-            elif info[17] == '4':
-                target_type = 'asynchronous transponder'
+            data['Compatibility with TIVs'] = info[17]
+
+            if data['Format Version'] == '2':
+                if info[18] == '0':
+                    target_type = 'no retroreflector (includes debris)'
+                elif info[18] == '1':
+                    target_type = 'passive retroreflector'
+                # 2=(deprecated – do not use)
+                elif info[18] == '3':
+                    target_type = 'synchronous transponder'
+                elif info[18] == '4':
+                    target_type = 'asynchronous transponder'
+                elif info[18] == '5':
+                    target_type = 'other'
+                else:
+                    raise Exception('Unknown target type')
             else:
-                raise Exception('Unknown target type')
+                if info[18] == '1':
+                    target_type = 'passive(retro-reflector) artificial satellite'
+                elif info[18] == '2':
+                    target_type = 'passive(retro-reflector) lunar reflector'
+                elif info[18] == '3':
+                    target_type = 'synchronous transponder'
+                elif info[18] == '4':
+                    target_type = 'asynchronous transponder'
+                else:
+                    raise Exception('Unknown target type')
             data['Target Type'] = target_type   
             
             if info[19] == '0':
@@ -80,6 +101,33 @@ def read_cpf(cpf_dir,cpf_file):
                 raise Exception('Unknown center of mass correction type')
             data['Center of Mass Correction'] = CM_correction          
 
+            if data['Format Version'] == '2':
+                match info[22]:
+                    case '0':
+                        target_location_dynamics = 'other'
+                    case '1':
+                        target_location_dynamics = 'Earth orbit'
+                    case '2':
+                        target_location_dynamics = 'lunar orbit'
+                    case '3':
+                        target_location_dynamics = 'lunar surface'
+                    case '4':
+                        target_location_dynamics = 'Mars orbit'
+                    case '5':
+                        target_location_dynamics = 'Mars surface'
+                    case '6':
+                        target_location_dynamics = 'Venus orbit'
+                    case '7':
+                        target_location_dynamics = 'Mercury orbit'
+                    case '8':
+                        target_location_dynamics = 'asteroid orbit'
+                    case '9':
+                        target_location_dynamics = 'asteroid surface'
+                    case '10':
+                        target_location_dynamics = 'solar orbit/transfer orbit (includes fly-by)'
+                    case _:
+                        raise Exception('Unknown Target location/dynamics type')
+                data['Target location/dynamics'] = target_location_dynamics
         elif info[0] == '10':
             direction_flag = info[1]
             data['MJD'].append(info[2])  
